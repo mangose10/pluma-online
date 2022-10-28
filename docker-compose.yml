@@ -1,0 +1,55 @@
+version: "3"
+
+services:
+  database:
+    container_name: pluma-online-database
+    build:
+      context: ${PWD}/docker/mongodb
+      dockerfile: Dockerfile-mongo
+    command: ["--keyFile", "/data/mongodb.key", "--replSet", "dbrs", "--bind_ip_all"]
+    env_file: .env
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_INITDB_DATABASE}
+    networks:
+      - web
+    volumes:
+      - database:/data/db
+    restart: unless-stopped
+    healthcheck:
+      test: test $$(echo "rs.initiate({_id:'dbrs',members:[{_id:0,host:\"database\"}]}).ok || rs.status().ok" | mongo -u $${MONGO_INITDB_ROOT_USERNAME} -p $${MONGO_INITDB_ROOT_PASSWORD} --quiet) -eq 1
+      interval: 100s
+
+  webapp:
+    container_name: pluma-online-webapp
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    depends_on:
+      - database
+    ports:
+      - "4200:4200"
+    networks:
+      - web
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+    environment:
+      APP_HOST: ${APP_HOST}
+      APP_ADMIN_EMAIL: ${APP_ADMIN_EMAIL}
+      APP_ADMIN_PASSWORD: ${APP_ADMIN_PASSWORD}
+      APP_JWT_SECRET: ${APP_JWT_SECRET}
+      RECAPTCHA_SITE_KEY: ${RECAPTCHA_SITE_KEY}
+      DATABASE_URL: ${DATABASE_URL}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PORT}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+
+volumes:
+  web:
+  database:
+
+networks:
+  web:

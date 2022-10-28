@@ -1,0 +1,22 @@
+FROM node:lts-alpine as builder
+
+ENV ENV development
+ENV NODE_ENV development
+ENV PATH /app/node_modules/.bin:/usr/local/bin:$PATH
+ENV CPPFLAGS "-DPNG_ARM_NEON_OPT=0"
+
+WORKDIR /app
+
+COPY . .
+
+RUN apk add python3 build-base && \
+  npm install -g npm pnpm prisma @angular/cli && \
+  chown -R node:node /app && \
+  pnpm config set store-dir /app/.pnpm-store && \
+  pnpm install --no-optional --unsafe-perm --strict-peer-dependencies=false
+
+USER node
+
+EXPOSE 4200
+
+ENTRYPOINT ["./docker-entry.sh"]
